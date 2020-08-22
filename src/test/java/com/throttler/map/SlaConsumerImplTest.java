@@ -12,9 +12,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlaConsumerImplTest {
     private static final int GUEST_RPS = 0;
+    private static final int SLA_TTL = 0;
     FrozenClock clock = new FrozenClock(0);
     private final SlaService slaService = new SlaServiceMock();
-    private final UserService userService = new UserService(GUEST_RPS, clock);
+    private final UserService userService = new UserService(GUEST_RPS, SLA_TTL, clock);
     private final TokenService tokenService = new TokenService(slaService);
     private final SlaConsumer dummySlaConsumer = (token, sla) -> {
     };
@@ -32,7 +33,7 @@ class SlaConsumerImplTest {
         assertEquals(rps, slaState.get().getRps());
 
         final Optional<String> resolvedUser = tokenService.resolveToken(token, dummySlaConsumer);
-        assertTrue(slaState.isPresent());
+        assertTrue(resolvedUser.isPresent());
         assertEquals(user, resolvedUser.get());
     }
 }

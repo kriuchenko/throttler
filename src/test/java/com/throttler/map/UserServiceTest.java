@@ -12,10 +12,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UserServiceTest {
     private static final int GUEST_RPS = 0;
+    private static final int SLA_TTL = 1000;
     private static final String TOKEN = "a";
     private static final String USER = "A";
     FrozenClock clock = new FrozenClock(0);
-    UserService userService = new UserService(GUEST_RPS, clock);
+    UserService userService = new UserService(GUEST_RPS, SLA_TTL, clock);
 
     @Test
     void getGuestData_shouldHaveGuestRps() {
@@ -44,15 +45,15 @@ class UserServiceTest {
     @Test
     void hasOutdatedSlaStates_givenOldStates_shouldReturnTrue() {
         userService.setSlaState(TOKEN, new SlaService.SLA(USER, 1));
-        clock.ahead(100);
-        assertTrue(userService.hasOutdatedSlaStates(100));
+        clock.ahead(SLA_TTL + 1);
+        assertTrue(userService.hasOutdatedSlaStates());
     }
 
     @Test
     void hasOutdatedSlaStates_givenFreshStates_shouldReturnFalse() {
         userService.setSlaState(TOKEN, new SlaService.SLA(USER, 1));
         clock.ahead(100);
-        assertFalse(userService.hasOutdatedSlaStates(1000));
+        assertFalse(userService.hasOutdatedSlaStates());
     }
 
     @Test
@@ -60,7 +61,7 @@ class UserServiceTest {
         userService.setSlaState(TOKEN, new SlaService.SLA(USER, 1));
         clock.ahead(1000);
         userService.setSlaState("b", new SlaService.SLA("B", 1));
-        userService.removeOldSlaStates(1000);
+        userService.removeOldSlaStates();
         assertTrue(userService.getSlaState(USER).isEmpty(), "Old user was not removed");
         assertFalse(userService.getSlaState("B").isEmpty(), "Current user was removed");
     }
@@ -69,9 +70,9 @@ class UserServiceTest {
     void dropOldSlaStates_shouldReturnDroppedTokens() {
         userService.setSlaState("a", new SlaService.SLA("A", 1));
         userService.setSlaState("b", new SlaService.SLA("A", 1));
-        clock.ahead(1000);
+        clock.ahead(SLA_TTL + 1);
         userService.setSlaState("c", new SlaService.SLA("C", 1));
-        Collection<String> droppedTokens = userService.removeOldSlaStates(1000);
+        Collection<String> droppedTokens = userService.removeOldSlaStates();
         assertEquals(Set.of("a", "b"), Set.copyOf(droppedTokens));
     }
 }

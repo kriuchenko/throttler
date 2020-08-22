@@ -4,25 +4,28 @@ import com.throttler.clock.Clock;
 import com.throttler.sla.SlaService;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
 public class UserService {
-    private long oldestSlaStateTime = 0;
-    private final Map<String, SlaState> slaStates = new LinkedHashMap<>();
+    private final AtomicLong oldestSlaStateTime = new AtomicLong(0);
+    private final int slaTtl;
+    private final Map<String, SlaState> slaStates = new LinkedHashMap<>(16, .75f, true);
     private final ReadWriteLock slaStatesLock = new ReentrantReadWriteLock();
     private final SlaState guestData;
     private final Clock clock;
 
-    public UserService(int guestRps, Clock clock) {
+    public UserService(int guestRps, int slaTtl, Clock clock) {
+        this.slaTtl = slaTtl;
         this.clock = clock;
         guestData = new SlaState(guestRps, clock.getMillis());
     }
 
-    public long getOldestSlaStateTime() {
-        return oldestSlaStateTime;
+    public boolean isCleanupRequired() {
+        return clock.getMillis() - oldestSlaStateTime.get() > slaTtl;
     }
 
     public SlaState getGuestSlaState() {
@@ -31,7 +34,7 @@ public class UserService {
 
     public void setSlaState(String token, SlaService.SLA sla){
         /* TODO Using single writeLock or a combination of readLock+writeLock is driven by the
-        number of simulteneous tokens typically used within SLA cache TTL - low number makes writeLock
+        number of simultaneous tokens typically used within SLA cache TTL - low number makes writeLock
         beneficial, while readLock+writeLock wins for high number
          */
         SlaState slaState = withLock(slaStatesLock.writeLock(), () ->
@@ -44,22 +47,22 @@ public class UserService {
         slaState.getTokens().add(token);
     }
 
-    public boolean hasOutdatedSlaStates(long ttl){
+    public boolean hasOutdatedSlaStates(){
         return withLock(slaStatesLock.readLock(), () -> {
             Iterator<SlaState> iterator = slaStates.values().iterator();
-            return iterator.hasNext() && clock.getMillis() - iterator.next().getLastAccess() >= ttl;
+            return iterator.hasNext() && clock.getMillis() - iterator.next().getLastAccess() > slaTtl;
         });
     }
 
-    public Collection<String> removeOldSlaStates(long ttl){
+    public Collection<String> removeOldSlaStates(){
         Collection<String> droppedTokens = new LinkedList<>();
         long now = clock.getMillis();
         return withLock(slaStatesLock.writeLock(), () -> {
             Iterator<SlaState> iterator = slaStates.values().iterator();
             while(iterator.hasNext()) {
                 SlaState slaState = iterator.next();
-                oldestSlaStateTime = slaState.getLastAccess();
-                if(now - slaState.getLastAccess() >= ttl) {
+                oldestSlaStateTime.set(slaState.getLastAccess());
+                if(now - slaState.getLastAccess() >= slaTtl) {
                     droppedTokens.addAll(slaState.getTokens());
                     iterator.remove();
                 } else

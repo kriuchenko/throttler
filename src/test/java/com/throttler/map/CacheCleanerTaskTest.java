@@ -15,39 +15,38 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 class CacheCleanerTaskTest {
     private static final int GUEST_RPS = 0;
+    private static final int SLA_TTL = 1000;
     FrozenClock clock = new FrozenClock(0);
     private UserService userService;
     private TokenService tokenService;
-    private SlaService slaService = new SlaServiceMock();
+    private final SlaService slaService = new SlaServiceMock();
 
     @BeforeEach
     void setUp() {
         tokenService = Mockito.spy(new TokenService(slaService));
-        userService = Mockito.spy(new UserService(GUEST_RPS, clock));
+        userService = Mockito.spy(new UserService(GUEST_RPS, SLA_TTL, clock));
     }
 
     @Test
     void run_whenOutdatedRecordsPresent_shouldRemoveOutdated() {
-        long ttl = 1000;
         String token = "a";
         userService.setSlaState(token, new SlaService.SLA("A", 1));
-        clock.ahead(ttl);
-        CacheCleanerTask task = new CacheCleanerTask(ttl, userService, tokenService);
+        clock.ahead(SLA_TTL + 1);
+        CacheCleanerTask task = new CacheCleanerTask(userService, tokenService);
         task.run();
-        verify(userService).hasOutdatedSlaStates(ttl);
-        verify(userService).removeOldSlaStates(ttl);
+        verify(userService).hasOutdatedSlaStates();
+        verify(userService).removeOldSlaStates();
         verify(tokenService).removeTokens((Collection<String>) argThat(Matchers.contains(token)));
     }
 
     @Test
     void run_whenCurrentRecordsPresent_shouldRemoveNothing() {
-        long ttl = 1000;
         String token = "a";
         userService.setSlaState(token, new SlaService.SLA("A", 1));
-        CacheCleanerTask task = new CacheCleanerTask(ttl, userService, tokenService);
+        CacheCleanerTask task = new CacheCleanerTask(userService, tokenService);
         task.run();
-        verify(userService).hasOutdatedSlaStates(ttl);
-        verify(userService, never()).removeOldSlaStates(ttl);
+        verify(userService).hasOutdatedSlaStates();
+        verify(userService, never()).removeOldSlaStates();
         verify(tokenService, never()).removeTokens((Collection<String>) argThat(Matchers.contains(token)));
     }
 }

@@ -28,10 +28,10 @@ public class MapBasedThrottlingService implements ThrottlingService {
         this.slaTTl = slaTTl;
         this.clock = new SystemClock();
         this.tokenService = new TokenService(slaService);
-        this.userService = new UserService(guestRps, clock);
+        this.userService = new UserService(guestRps, slaTTl, clock);
         this.slaStateService = new SlaStateService(clock);
         this.slaConsumer = new SlaConsumerImpl(userService, tokenService);
-        this.cacheCleanerTask = new CacheCleanerTask(slaTTl, userService, tokenService);
+        this.cacheCleanerTask = new CacheCleanerTask(userService, tokenService);
     }
 
     public MapBasedThrottlingService(int slaTtl, TokenService tokenService, UserService userService, SlaStateService slaStateService, Clock clock) {
@@ -41,7 +41,7 @@ public class MapBasedThrottlingService implements ThrottlingService {
         this.slaStateService = slaStateService;
         this.clock = clock;
         this.slaConsumer = new SlaConsumerImpl(userService, tokenService);
-        this.cacheCleanerTask = new CacheCleanerTask(slaTtl, userService, tokenService);
+        this.cacheCleanerTask = new CacheCleanerTask(userService, tokenService);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class MapBasedThrottlingService implements ThrottlingService {
     }
 
     private void cleanCache(){
-        if(clock.getMillis() - userService.getOldestSlaStateTime() > slaTTl && !cleaning.getAndSet(true))
-            CompletableFuture.runAsync(cacheCleanerTask);
+        if(userService.isCleanupRequired() && !cleaning.getAndSet(true))
+            CompletableFuture.runAsync(cacheCleanerTask).whenComplete((v, t) -> cleaning.set(false));
     }
 }
