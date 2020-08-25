@@ -41,6 +41,12 @@
 			<version>4.13-rc-2</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>io.gatling.highcharts</groupId>
+			<artifactId>gatling-charts-highcharts</artifactId>
+			<version>3.4.0-M1</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -48,6 +54,20 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>io.gatling</groupId>
+				<artifactId>gatling-maven-plugin</artifactId>
+				<version>3.0.5</version>
+				<configuration>
+					<simulationsFolder>src/test/scala</simulationsFolder>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>test</phase>
+						<goals><goal>test</goal></goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
