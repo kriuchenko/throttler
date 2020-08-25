@@ -4,11 +4,19 @@ import com.throttler.ThrottlingService;
 import com.throttler.clock.Clock;
 import com.throttler.clock.SystemClock;
 import com.throttler.sla.SlaService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/*
+    TODO Add comments
+ */
+@Service("mapBasedThrottlingService")
 public class MapBasedThrottlingService implements ThrottlingService {
     private final int slaTTl;
     private final TokenService tokenService;
@@ -24,7 +32,10 @@ public class MapBasedThrottlingService implements ThrottlingService {
         @param  cacheTtl    Time to keep access information in cache in milliseconds (0 for infinite).
         @param  SlaService  Sla service
      */
-    public MapBasedThrottlingService(int guestRps, int slaTTl, SlaService slaService) {
+    @Autowired
+    public MapBasedThrottlingService(@Value("${guestRps}") int guestRps,
+                                     @Value("${slaTTl}") int slaTTl,
+                                     @Qualifier("slaServiceMockAny") SlaService slaService) {
         this.slaTTl = slaTTl;
         this.clock = new SystemClock();
         this.tokenService = new TokenService(slaService);

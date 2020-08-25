@@ -1,25 +1,20 @@
 package com.throttler.sla;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-@Service("slaServiceMock")
-public class SlaServiceMock implements SlaService{
-    private static final Map<String, SLA> DEFAULT_SLAS = Map.of(
-            "a",new SLA("a", 1),
-            "b",new SLA("B", 3)
-            );
+@Service("slaServiceMockAny")
+public class SlaServiceMockAny implements SlaService{
     private boolean async = false;
+    private int default_rps;
     Map<String, SLA> slas;
 
-    public SlaServiceMock() {
-        this.slas = DEFAULT_SLAS;
-    }
-    public SlaServiceMock(boolean async) {
+    public SlaServiceMockAny(@Value("${mockSlaServiceAsync}") boolean async, @Value("${mockUserRps}") int default_rps) {
         this.async = async;
-        this.slas = DEFAULT_SLAS;
+        this.default_rps = default_rps;
     }
 
     @Override
@@ -30,5 +25,9 @@ public class SlaServiceMock implements SlaService{
         else
             result.complete(slas.get(token));
         return result;
+    }
+
+    private SLA buildSla(String token){
+        return new SLA("USER_" + token.toUpperCase(), default_rps);
     }
 }
